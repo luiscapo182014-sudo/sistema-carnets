@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
+import { generateCarnet } from './generateCarnet'
 
 function PlayerRegistration() {
   const [teams, setTeams] = useState([])
@@ -51,15 +52,24 @@ function PlayerRegistration() {
       photo_url = data.publicUrl
     }
 
-    const { error } = await supabase.from('players').insert([{
+    const { data: inserted, error } = await supabase.from('players').insert([{
       ...form,
       jersey_number: form.jersey_number ? parseInt(form.jersey_number) : null,
       photo_url
-    }])
+    }]).select().single()
 
     setSaving(false)
 
     if (error) { alert('Error: ' + error.message); return }
+
+    const teamName = teams.find(t => t.id === form.team_id)?.name
+
+    try {
+      await generateCarnet(inserted, teamName)
+    } catch (e) {
+      console.warn('No se pudo generar el carnet automáticamente', e)
+    }
+
     setSubmitted(true)
   }
 
@@ -135,7 +145,7 @@ function PlayerRegistration() {
         <div style={{ ...styles.card, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
           <h2 style={styles.title}>Registro enviado</h2>
-          <p style={{ color: '#475569' }}>Tus datos fueron cargados correctamente. La organización va a revisar tu inscripción.</p>
+          <p style={{ color: '#475569' }}>Tu carnet se descargó automáticamente. La organización va a revisar tu inscripción.</p>
         </div>
       </div>
     )
