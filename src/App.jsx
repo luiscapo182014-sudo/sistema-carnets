@@ -6,7 +6,7 @@ import './App.css'
 
 const statusOptions = ['habilitado', 'suspendido', 'expulsado', 'baja']
 
-function App() {
+function App({ onLogout }) {
   const [teams, setTeams] = useState([])
   const [players, setPlayers] = useState([])
 
@@ -79,7 +79,10 @@ function App() {
 
   return (
     <div style={{ maxWidth: 700, margin: '0 auto', padding: 20, fontFamily: 'sans-serif' }}>
-      <h1>Sistema de Torneo</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1>Sistema de Torneo</h1>
+        <button onClick={onLogout}>Cerrar sesión</button>
+      </div>
 
       <h2>Cargar Equipo</h2>
       <form onSubmit={createTeam} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 30 }}>
