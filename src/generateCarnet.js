@@ -21,7 +21,6 @@ export async function generateCarnet(player, teamName, tournamentOverride) {
     tournament = result.data
   }
 
-  // Elegir diseño según el torneo
   if (tournament?.id === 2) {
     await renderDesignADN(player, teamName, tournament)
   } else {
@@ -31,11 +30,11 @@ export async function generateCarnet(player, teamName, tournamentOverride) {
 
 // ============ DISEÑO "AMIGOS DEL NORTE" (torneo id 2) ============
 async function renderDesignADN(player, teamName, tournament) {
-  const W = 81, H = 144
+  const W = 81, H = 168
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, H] })
 
   doc.setFillColor(...WHITE)
-  doc.rect(0, 0, W, H, 'F')
+  doc.roundedRect(0, 0, W, H, 4, 4, 'F')
 
   doc.setFillColor(...BLACK)
   doc.triangle(0, 0, 34, 0, 0, 34, 'F')
@@ -45,6 +44,9 @@ async function renderDesignADN(player, teamName, tournament) {
   doc.triangle(0, 20, 54, 0, 0, 54, 'F')
   doc.setFillColor(...BLACK)
   doc.rect(0, 0, W, 6, 'F')
+
+  doc.setFillColor(...WHITE)
+  doc.roundedRect(W / 2 - 8, 0, 16, 3.5, 1.5, 1.5, 'F')
 
   const logoSize = 30
   const logoX = W / 2 - logoSize / 2
@@ -74,10 +76,17 @@ async function renderDesignADN(player, teamName, tournament) {
   doc.setFont(undefined, 'bolditalic')
   doc.text('JUGADOR', W / 2, bannerY + 7.2, { align: 'center' })
 
-  const rowY = bannerY + bannerH + 10
+  const footerY = H - 14
+  const centerTop = bannerY + bannerH
+  doc.setFillColor(246, 246, 246)
+  doc.rect(0, centerTop, W, footerY - centerTop, 'F')
+
+  const rowY = centerTop + 10
   const photoW = 30, photoH = 36
   const photoX = 6
 
+  doc.setFillColor(...WHITE)
+  doc.roundedRect(photoX, rowY, photoW, photoH, 2, 2, 'F')
   doc.setDrawColor(...LIGHTGRAY)
   doc.setLineWidth(0.4)
   doc.roundedRect(photoX, rowY, photoW, photoH, 2, 2)
@@ -100,6 +109,8 @@ async function renderDesignADN(player, teamName, tournament) {
   const qrX = W - 6 - qrSize
   const qrY = rowY + (photoH - qrSize) / 2
 
+  doc.setFillColor(...WHITE)
+  doc.roundedRect(qrX - 1, qrY - 1, qrSize + 2, qrSize + 2, 2, 2, 'F')
   doc.setDrawColor(...RED)
   doc.setLineWidth(0.5)
   doc.roundedRect(qrX - 1, qrY - 1, qrSize + 2, qrSize + 2, 2, 2)
@@ -110,54 +121,67 @@ async function renderDesignADN(player, teamName, tournament) {
   })
   doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize)
 
-  let y = rowY + photoH + 12
-  doc.setFillColor(...RED)
-  doc.circle(9, y - 1.5, 2.2, 'F')
+  let y = rowY + photoH + 16
+  drawTeamIcon(doc, 9, y - 4)
   doc.setTextColor(...GRAY)
   doc.setFontSize(8)
   doc.setFont(undefined, 'normal')
-  doc.text('EQUIPO', 15, y - 3)
+  doc.text('EQUIPO', 17, y - 5)
   doc.setTextColor(...BLACK)
   doc.setFontSize(13)
   doc.setFont(undefined, 'bold')
-  doc.text((teamName || '-').toUpperCase(), 15, y + 3, { maxWidth: W - 20 })
+  doc.text((teamName || '-').toUpperCase(), 17, y + 1, { maxWidth: W - 22 })
 
-  doc.setDrawColor(...LIGHTGRAY)
-  doc.setLineWidth(0.3)
+  doc.setDrawColor(...RED)
+  doc.setLineWidth(0.4)
   doc.line(6, y + 8, W - 6, y + 8)
 
-  y += 18
-  doc.setFillColor(...RED)
-  doc.circle(9, y - 1.5, 2.2, 'F')
+  y += 24
+  drawIdIcon(doc, 9, y - 4)
   doc.setTextColor(...GRAY)
   doc.setFontSize(8)
   doc.setFont(undefined, 'normal')
-  doc.text('DNI', 15, y - 3)
+  doc.text('DNI', 17, y - 5)
   doc.setTextColor(...BLACK)
   doc.setFontSize(13)
   doc.setFont(undefined, 'bold')
-  doc.text(formatDNI(player.dni), 15, y + 3)
+  doc.text(formatDNI(player.dni), 17, y + 1)
 
-  const footerY = H - 14
   doc.setFillColor(...RED)
   doc.rect(0, footerY, W, 14, 'F')
   doc.setFillColor(...BLACK)
   doc.triangle(0, footerY, 16, footerY, 0, footerY + 14, 'F')
   doc.triangle(W, footerY, W - 16, footerY, W, footerY + 14, 'F')
 
-  const ballR = 4
+  const ballR = 4.5
   doc.setFillColor(...WHITE)
-  doc.circle(W / 2, footerY + 7, ballR, 'F')
+  doc.circle(W / 2, footerY, ballR, 'F')
   doc.setDrawColor(...BLACK)
   doc.setLineWidth(0.3)
-  doc.circle(W / 2, footerY + 7, ballR)
+  doc.circle(W / 2, footerY, ballR)
   doc.setFillColor(...BLACK)
-  doc.circle(W / 2, footerY + 7, 1.1, 'F')
+  doc.circle(W / 2, footerY, 1.3, 'F')
 
   doc.save(`carnet_${player.first_name}_${player.last_name}.pdf`)
 }
 
-// ============ DISEÑO POR DEFECTO (torneo id 1 y otros) ============
+function drawTeamIcon(doc, x, y) {
+  doc.setDrawColor(...RED)
+  doc.setLineWidth(0.4)
+  doc.circle(x - 1.2, y, 1, 'S')
+  doc.circle(x + 1.2, y, 1, 'S')
+  doc.circle(x, y - 1, 1.1, 'S')
+}
+
+function drawIdIcon(doc, x, y) {
+  doc.setDrawColor(...RED)
+  doc.setLineWidth(0.35)
+  doc.roundedRect(x - 2.2, y - 2.2, 4.4, 4.4, 0.6, 0.6, 'S')
+  doc.circle(x, y - 0.6, 0.8, 'S')
+  doc.line(x - 1.2, y + 1.2, x + 1.2, y + 1.2)
+}
+
+// ============ DISEÑO POR DEFECTO (otros torneos) ============
 async function renderDesignDefault(player, teamName, tournament) {
   const RED2 = [200, 30, 30]
   const BLACK2 = [15, 15, 15]
