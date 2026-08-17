@@ -2,12 +2,6 @@ import jsPDF from 'jspdf'
 import QRCode from 'qrcode'
 import { supabase } from './supabaseClient'
 
-const RED = [200, 30, 40]
-const BLACK = [20, 20, 20]
-const WHITE = [255, 255, 255]
-const GRAY = [90, 90, 90]
-const LIGHTGRAY = [230, 230, 230]
-
 export async function generateCarnet(player, teamName, tournamentOverride) {
   let tournament = tournamentOverride
 
@@ -21,170 +15,113 @@ export async function generateCarnet(player, teamName, tournamentOverride) {
     tournament = result.data
   }
 
-  if (tournament?.id === 2) {
-    await renderDesignADN(player, teamName, tournament)
+  if (tournament?.id === 2 && tournament?.carnet_template_url) {
+    await renderFromTemplate(player, teamName, tournament)
   } else {
     await renderDesignDefault(player, teamName, tournament)
   }
 }
 
-// ============ DISEÑO "AMIGOS DEL NORTE" (torneo id 2) ============
-async function renderDesignADN(player, teamName, tournament) {
-  const W = 81, H = 168
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, H] })
+// ============ DISEÑO CON PLANTILLA (Canvas) ============
+async function renderFromTemplate(player, teamName, tournament) {
+  const CW = 1080, CH = 1920
 
-  doc.setFillColor(...WHITE)
-  doc.roundedRect(0, 0, W, H, 4, 4, 'F')
+  const canvas = document.createElement('canvas')
+  canvas.width = CW
+  canvas.height = CH
+  const ctx = canvas.getContext('2d')
 
-  doc.setFillColor(...BLACK)
-  doc.triangle(0, 0, 34, 0, 0, 34, 'F')
-  doc.setFillColor(...RED)
-  doc.triangle(0, 10, 44, 0, 0, 44, 'F')
-  doc.setFillColor(...WHITE)
-  doc.triangle(0, 20, 54, 0, 0, 54, 'F')
-  doc.setFillColor(...BLACK)
-  doc.rect(0, 0, W, 6, 'F')
+  // 1. Plantilla de fondo
+  const template = await loadImg(tournament.carnet_template_url)
+  ctx.drawImage(template, 0, 0, CW, CH)
 
-  doc.setFillColor(...WHITE)
-  doc.roundedRect(W / 2 - 8, 0, 16, 3.5, 1.5, 1.5, 'F')
-
-  const logoSize = 30
-  const logoX = W / 2 - logoSize / 2
-  const logoY = 10
-
-  if (tournament?.logo_url) {
+  // 2. Logo del torneo (arriba)
+  if (tournament.logo_url) {
     try {
-      const logoData = await loadImageAsBase64(tournament.logo_url)
-      doc.addImage(logoData, 'PNG', logoX, logoY, logoSize, logoSize)
+      const logo = await loadImg(tournament.logo_url)
+      ctx.drawImage(logo, 340, 150, 400, 400)
     } catch (e) {
       console.warn('No se pudo cargar el logo', e)
     }
   }
 
-  const bannerY = 44
-  const bannerH = 10
-  doc.setFillColor(...RED)
-  doc.rect(4, bannerY, W - 8, bannerH, 'F')
-  doc.setFillColor(...WHITE)
-  doc.triangle(0, bannerY, 4, bannerY, 4, bannerY + bannerH, 'F')
-  doc.triangle(0, bannerY + bannerH, 4, bannerY + bannerH, 0, bannerY, 'F')
-  doc.triangle(W, bannerY, W - 4, bannerY, W - 4, bannerY + bannerH, 'F')
-  doc.triangle(W, bannerY + bannerH, W - 4, bannerY + bannerH, W, bannerY, 'F')
-
-  doc.setTextColor(...WHITE)
-  doc.setFontSize(15)
-  doc.setFont(undefined, 'bolditalic')
-  doc.text('JUGADOR', W / 2, bannerY + 7.2, { align: 'center' })
-
-  const footerY = H - 14
-  const centerTop = bannerY + bannerH
-  doc.setFillColor(246, 246, 246)
-  doc.rect(0, centerTop, W, footerY - centerTop, 'F')
-
-  const rowY = centerTop + 10
-  const photoW = 30, photoH = 36
-  const photoX = 6
-
-  doc.setFillColor(...WHITE)
-  doc.roundedRect(photoX, rowY, photoW, photoH, 2, 2, 'F')
-  doc.setDrawColor(...LIGHTGRAY)
-  doc.setLineWidth(0.4)
-  doc.roundedRect(photoX, rowY, photoW, photoH, 2, 2)
-
+  // 3. Foto del jugador (cover, recortada al marco)
   if (player.photo_url) {
     try {
-      const imgData = await loadImageAsBase64(player.photo_url)
-      doc.addImage(imgData, 'JPEG', photoX + 0.8, rowY + 0.8, photoW - 1.6, photoH - 1.6)
+      const photo = await loadImg(player.photo_url)
+      drawImageCover(ctx, photo, 150, 880, 360, 460)
     } catch (e) {
       console.warn('No se pudo cargar la foto', e)
     }
   }
 
-  const dividerX = photoX + photoW + 5
-  doc.setDrawColor(...GRAY)
-  doc.setLineWidth(0.2)
-  doc.line(dividerX, rowY + 2, dividerX, rowY + photoH - 2)
-
-  const qrSize = 28
-  const qrX = W - 6 - qrSize
-  const qrY = rowY + (photoH - qrSize) / 2
-
-  doc.setFillColor(...WHITE)
-  doc.roundedRect(qrX - 1, qrY - 1, qrSize + 2, qrSize + 2, 2, 2, 'F')
-  doc.setDrawColor(...RED)
-  doc.setLineWidth(0.5)
-  doc.roundedRect(qrX - 1, qrY - 1, qrSize + 2, qrSize + 2, 2, 2)
-
+  // 4. QR
   const qrDataUrl = await QRCode.toDataURL(`${window.location.origin}/jugador/${player.short_id}`, {
     color: { dark: '#141414', light: '#ffffff' },
     margin: 0
   })
-  doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize)
+  const qrImg = await loadImg(qrDataUrl)
+  ctx.drawImage(qrImg, 580, 930, 360, 360)
 
-  let y = rowY + photoH + 16
-  drawTeamIcon(doc, 9, y - 4)
-  doc.setTextColor(...GRAY)
-  doc.setFontSize(8)
-  doc.setFont(undefined, 'normal')
-  doc.text('EQUIPO', 17, y - 5)
-  doc.setTextColor(...BLACK)
-  doc.setFontSize(13)
-  doc.setFont(undefined, 'bold')
-  doc.text((teamName || '-').toUpperCase(), 17, y + 1, { maxWidth: W - 22 })
+  // 5. Textos
+  ctx.fillStyle = '#000000'
+  ctx.textBaseline = 'alphabetic'
 
-  doc.setDrawColor(...RED)
-  doc.setLineWidth(0.4)
-  doc.line(6, y + 8, W - 6, y + 8)
+  ctx.font = 'bold 30px Arial'
+  ctx.fillText('EQUIPO', 280, 1420)
 
-  y += 24
-  drawIdIcon(doc, 9, y - 4)
-  doc.setTextColor(...GRAY)
-  doc.setFontSize(8)
-  doc.setFont(undefined, 'normal')
-  doc.text('DNI', 17, y - 5)
-  doc.setTextColor(...BLACK)
-  doc.setFontSize(13)
-  doc.setFont(undefined, 'bold')
-  doc.text(formatDNI(player.dni), 17, y + 1)
+  ctx.font = 'bold 55px Arial'
+  ctx.fillText((teamName || '-').toUpperCase(), 280, 1480)
 
-  doc.setFillColor(...RED)
-  doc.rect(0, footerY, W, 14, 'F')
-  doc.setFillColor(...BLACK)
-  doc.triangle(0, footerY, 16, footerY, 0, footerY + 14, 'F')
-  doc.triangle(W, footerY, W - 16, footerY, W, footerY + 14, 'F')
+  ctx.font = 'bold 30px Arial'
+  ctx.fillText('DNI', 280, 1560)
 
-  const ballR = 4.5
-  doc.setFillColor(...WHITE)
-  doc.circle(W / 2, footerY, ballR, 'F')
-  doc.setDrawColor(...BLACK)
-  doc.setLineWidth(0.3)
-  doc.circle(W / 2, footerY, ballR)
-  doc.setFillColor(...BLACK)
-  doc.circle(W / 2, footerY, 1.3, 'F')
+  ctx.font = 'bold 55px Arial'
+  ctx.fillText(formatDNI(player.dni), 280, 1620)
 
+  // 6. Convertir canvas a PDF
+  const imgData = canvas.toDataURL('image/png')
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'px', format: [CW, CH] })
+  doc.addImage(imgData, 'PNG', 0, 0, CW, CH)
   doc.save(`carnet_${player.first_name}_${player.last_name}.pdf`)
 }
 
-function drawTeamIcon(doc, x, y) {
-  doc.setDrawColor(...RED)
-  doc.setLineWidth(0.4)
-  doc.circle(x - 1.2, y, 1, 'S')
-  doc.circle(x + 1.2, y, 1, 'S')
-  doc.circle(x, y - 1, 1.1, 'S')
+// Dibuja una imagen "cover" (recorta para llenar el rectángulo sin deformar)
+function drawImageCover(ctx, img, x, y, w, h) {
+  const imgRatio = img.width / img.height
+  const boxRatio = w / h
+  let sx, sy, sw, sh
+
+  if (imgRatio > boxRatio) {
+    sh = img.height
+    sw = sh * boxRatio
+    sx = (img.width - sw) / 2
+    sy = 0
+  } else {
+    sw = img.width
+    sh = sw / boxRatio
+    sx = 0
+    sy = (img.height - sh) / 2
+  }
+
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h)
 }
 
-function drawIdIcon(doc, x, y) {
-  doc.setDrawColor(...RED)
-  doc.setLineWidth(0.35)
-  doc.roundedRect(x - 2.2, y - 2.2, 4.4, 4.4, 0.6, 0.6, 'S')
-  doc.circle(x, y - 0.6, 0.8, 'S')
-  doc.line(x - 1.2, y + 1.2, x + 1.2, y + 1.2)
+function loadImg(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = url
+  })
 }
 
-// ============ DISEÑO POR DEFECTO (otros torneos) ============
+// ============ DISEÑO POR DEFECTO (otros torneos, sin plantilla) ============
 async function renderDesignDefault(player, teamName, tournament) {
   const RED2 = [200, 30, 30]
   const BLACK2 = [15, 15, 15]
+  const WHITE = [255, 255, 255]
 
   const W = 81, H = 144
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, H] })
@@ -205,9 +142,18 @@ async function renderDesignDefault(player, teamName, tournament) {
 
   if (tournament?.logo_url) {
     try {
-      const logoData = await loadImageAsBase64(tournament.logo_url)
-      const circularLogo = await makeCircularImage(logoData, 300)
-      doc.addImage(circularLogo, 'PNG', logoX, logoY, logoSize, logoSize)
+      const img = await loadImg(tournament.logo_url)
+      const c = document.createElement('canvas')
+      c.width = 300; c.height = 300
+      const cctx = c.getContext('2d')
+      cctx.beginPath()
+      cctx.arc(150, 150, 150, 0, Math.PI * 2)
+      cctx.closePath()
+      cctx.clip()
+      const scale = Math.max(300 / img.width, 300 / img.height)
+      const w = img.width * scale, h = img.height * scale
+      cctx.drawImage(img, (300 - w) / 2, (300 - h) / 2, w, h)
+      doc.addImage(c.toDataURL('image/png'), 'PNG', logoX, logoY, logoSize, logoSize)
     } catch (e) {
       console.warn('No se pudo cargar el logo', e)
     }
@@ -236,8 +182,11 @@ async function renderDesignDefault(player, teamName, tournament) {
 
   if (player.photo_url) {
     try {
-      const imgData = await loadImageAsBase64(player.photo_url)
-      doc.addImage(imgData, 'JPEG', photoX + 1, rowY + 1, photoW - 2, photoH - 2)
+      const img = await loadImg(player.photo_url)
+      const c = document.createElement('canvas')
+      c.width = img.width; c.height = img.height
+      c.getContext('2d').drawImage(img, 0, 0)
+      doc.addImage(c.toDataURL('image/png'), 'PNG', photoX + 1, rowY + 1, photoW - 2, photoH - 2)
     } catch (e) {
       console.warn('No se pudo cargar la foto', e)
     }
@@ -308,43 +257,4 @@ function formatDNI(dni) {
   if (!dni) return '-'
   const clean = String(dni).replace(/\D/g, '')
   return clean.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-}
-
-function makeCircularImage(base64, size) {
-  return new Promise((resolve) => {
-    const img = new Image()
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = size
-      canvas.height = size
-      const ctx = canvas.getContext('2d')
-      ctx.beginPath()
-      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
-      ctx.closePath()
-      ctx.clip()
-      const scale = Math.max(size / img.width, size / img.height)
-      const w = img.width * scale
-      const h = img.height * scale
-      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h)
-      resolve(canvas.toDataURL('image/png'))
-    }
-    img.src = base64
-  })
-}
-
-function loadImageAsBase64(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = img.width
-      canvas.height = img.height
-      const ctx = canvas.getContext('2d')
-      ctx.drawImage(img, 0, 0)
-      resolve(canvas.toDataURL('image/png'))
-    }
-    img.onerror = reject
-    img.src = url
-  })
 }
