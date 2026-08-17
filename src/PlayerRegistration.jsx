@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
+import { useParams } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import { generateCarnet } from './generateCarnet'
 
 function PlayerRegistration() {
+  const { tournamentId } = useParams()
   const [teams, setTeams] = useState([])
   const [tournament, setTournament] = useState(null)
+  const [notFound, setNotFound] = useState(false)
   const [photoFile, setPhotoFile] = useState(null)
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -15,18 +18,19 @@ function PlayerRegistration() {
   })
 
   useEffect(() => {
-    loadTeams()
     loadTournament()
-  }, [])
-
-  async function loadTeams() {
-    const { data } = await supabase.from('teams').select('*').order('name')
-    setTeams(data || [])
-  }
+    loadTeams()
+  }, [tournamentId])
 
   async function loadTournament() {
-    const { data } = await supabase.from('tournaments').select('*').order('created_at', { ascending: false }).limit(1).single()
-    setTournament(data || null)
+    const { data, error } = await supabase.from('tournaments').select('*').eq('id', tournamentId).single()
+    if (error || !data) { setNotFound(true); return }
+    setTournament(data)
+  }
+
+  async function loadTeams() {
+    const { data } = await supabase.from('teams').select('*').eq('tournament_id', tournamentId).order('name')
+    setTeams(data || [])
   }
 
   async function handleSubmit(e) {
@@ -65,7 +69,7 @@ function PlayerRegistration() {
     const teamName = teams.find(t => t.id === form.team_id)?.name
 
     try {
-      await generateCarnet(inserted, teamName)
+      await generateCarnet(inserted, teamName, tournament)
     } catch (e) {
       console.warn('No se pudo generar el carnet automáticamente', e)
     }
@@ -137,6 +141,17 @@ function PlayerRegistration() {
       cursor: 'pointer',
       marginTop: 8,
     },
+  }
+
+  if (notFound) {
+    return (
+      <div style={styles.page}>
+        <div style={{ ...styles.card, textAlign: 'center' }}>
+          <h2 style={styles.title}>Torneo no encontrado</h2>
+          <p style={{ color: '#475569' }}>El link de registro no es válido.</p>
+        </div>
+      </div>
+    )
   }
 
   if (submitted) {

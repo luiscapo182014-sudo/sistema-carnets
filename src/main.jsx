@@ -36,7 +36,7 @@ function Root() {
           session ? <App onLogout={handleLogout} /> : <Login onLogin={setSession} />
         } />
         <Route path="/jugador/:shortId" element={<PlayerVerification />} />
-        <Route path="/registro" element={<PlayerRegistration />} />
+        <Route path="/registro/:tournamentId" element={<PlayerRegistration />} />
       </Routes>
     </BrowserRouter>
   )
