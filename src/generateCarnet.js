@@ -31,11 +31,9 @@ async function renderFromTemplate(player, teamName, tournament) {
   canvas.height = CH
   const ctx = canvas.getContext('2d')
 
-  // 1. Plantilla de fondo
   const template = await loadImg(tournament.carnet_template_url)
   ctx.drawImage(template, 0, 0, CW, CH)
 
-  // 2. Logo del torneo (arriba)
   if (tournament.logo_url) {
     try {
       const logo = await loadImg(tournament.logo_url)
@@ -45,7 +43,6 @@ async function renderFromTemplate(player, teamName, tournament) {
     }
   }
 
-  // 3. Foto del jugador (cover, recortada al marco)
   if (player.photo_url) {
     try {
       const photo = await loadImg(player.photo_url)
@@ -55,7 +52,6 @@ async function renderFromTemplate(player, teamName, tournament) {
     }
   }
 
-  // 4. QR
   const qrDataUrl = await QRCode.toDataURL(`${window.location.origin}/jugador/${player.short_id}`, {
     color: { dark: '#141414', light: '#ffffff' },
     margin: 0
@@ -63,30 +59,64 @@ async function renderFromTemplate(player, teamName, tournament) {
   const qrImg = await loadImg(qrDataUrl)
   ctx.drawImage(qrImg, 580, 930, 360, 360)
 
-  // 5. Textos
-  ctx.fillStyle = '#000000'
+  // Íconos + Textos
   ctx.textBaseline = 'alphabetic'
 
-  ctx.font = 'bold 30px Arial'
-  ctx.fillText('EQUIPO', 280, 1420)
+  drawTeamIconCanvas(ctx, 220, 1330)
 
-  ctx.font = 'bold 55px Arial'
-  ctx.fillText((teamName || '-').toUpperCase(), 280, 1480)
+  ctx.fillStyle = '#5a5a5a'
+  ctx.font = 'bold 28px Arial'
+  ctx.fillText('EQUIPO', 280, 1340)
 
-  ctx.font = 'bold 30px Arial'
-  ctx.fillText('DNI', 280, 1560)
+  ctx.fillStyle = '#111111'
+  ctx.font = '900 50px Arial'
+  ctx.fillText((teamName || '-').toUpperCase(), 280, 1400)
 
-  ctx.font = 'bold 55px Arial'
-  ctx.fillText(formatDNI(player.dni), 280, 1620)
+  drawIdIconCanvas(ctx, 220, 1460)
 
-  // 6. Convertir canvas a PDF
+  ctx.fillStyle = '#5a5a5a'
+  ctx.font = 'bold 28px Arial'
+  ctx.fillText('DNI', 280, 1470)
+
+  ctx.fillStyle = '#111111'
+  ctx.font = '900 50px Arial'
+  ctx.fillText(formatDNI(player.dni), 280, 1530)
+
   const imgData = canvas.toDataURL('image/png')
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'px', format: [CW, CH] })
-  doc.addImage(imgData, 'PNG', 0, 0, CW, CH)
+  const pdfW = 81
+  const pdfH = pdfW * (CH / CW)
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pdfW, pdfH] })
+  doc.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH)
   doc.save(`carnet_${player.first_name}_${player.last_name}.pdf`)
 }
 
-// Dibuja una imagen "cover" (recorta para llenar el rectángulo sin deformar)
+function drawTeamIconCanvas(ctx, x, y) {
+  ctx.strokeStyle = '#c81e28'
+  ctx.lineWidth = 4
+  ctx.beginPath()
+  ctx.arc(x - 12, y, 10, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.arc(x + 12, y, 10, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.arc(x, y - 10, 11, 0, Math.PI * 2)
+  ctx.stroke()
+}
+
+function drawIdIconCanvas(ctx, x, y) {
+  ctx.strokeStyle = '#c81e28'
+  ctx.lineWidth = 4
+  ctx.strokeRect(x - 22, y - 22, 44, 44)
+  ctx.beginPath()
+  ctx.arc(x, y - 6, 8, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(x - 12, y + 12)
+  ctx.lineTo(x + 12, y + 12)
+  ctx.stroke()
+}
+
 function drawImageCover(ctx, img, x, y, w, h) {
   const imgRatio = img.width / img.height
   const boxRatio = w / h
