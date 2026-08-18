@@ -17,6 +17,8 @@ const statusColors = {
 function App({ onLogout }) {
   const [teams, setTeams] = useState([])
   const [players, setPlayers] = useState([])
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm] = useState({})
 
   const [teamForm, setTeamForm] = useState({ name: '', delegate_name: '', delegate_contact: '' })
   const [playerForm, setPlayerForm] = useState({
@@ -80,6 +82,42 @@ function App({ onLogout }) {
   async function updateStatus(playerId, newStatus) {
     const { error } = await supabase.from('players').update({ status: newStatus }).eq('id', playerId)
     if (error) { alert('Error: ' + error.message); return }
+    loadPlayers()
+  }
+
+  async function deletePlayer(playerId, playerName) {
+    if (!confirm(`¿Seguro que querés eliminar a ${playerName}? Esta acción no se puede deshacer.`)) return
+    const { error } = await supabase.from('players').delete().eq('id', playerId)
+    if (error) { alert('Error: ' + error.message); return }
+    loadPlayers()
+  }
+
+  function startEdit(p) {
+    setEditingId(p.id)
+    setEditForm({
+      first_name: p.first_name || '',
+      last_name: p.last_name || '',
+      dni: p.dni || '',
+      birth_date: p.birth_date || '',
+      team_id: p.team_id || '',
+      jersey_number: p.jersey_number || '',
+      position: p.position || ''
+    })
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditForm({})
+  }
+
+  async function saveEdit(playerId) {
+    const { error } = await supabase.from('players').update({
+      ...editForm,
+      jersey_number: editForm.jersey_number ? parseInt(editForm.jersey_number) : null
+    }).eq('id', playerId)
+    if (error) { alert('Error: ' + error.message); return }
+    setEditingId(null)
+    setEditForm({})
     loadPlayers()
   }
 
@@ -167,7 +205,7 @@ function App({ onLogout }) {
     },
     playerCard: {
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       gap: 14,
       background: '#0d0d0d',
       border: '1px solid #2a2a2a',
@@ -210,6 +248,17 @@ function App({ onLogout }) {
       background: statusColors[status] || '#888',
       marginRight: 6,
     }),
+    editInput: {
+      width: '100%',
+      padding: '8px 10px',
+      borderRadius: 6,
+      border: '1px solid #333',
+      background: '#1a1a1a',
+      color: '#fff',
+      fontSize: 13,
+      marginBottom: 8,
+      boxSizing: 'border-box',
+    },
   }
 
   return (
@@ -263,25 +312,68 @@ function App({ onLogout }) {
           <h2 style={styles.sectionTitle}>Jugadores cargados ({players.length})</h2>
           {players.map(p => (
             <div key={p.id} style={styles.playerCard}>
-              <QRCodeSVG value={`${baseUrl}/jugador/${p.short_id}`} size={56} />
-              {p.photo_url && (
-                <img src={p.photo_url} alt="Foto"
-                  style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
+              {editingId !== p.id && (
+                <>
+                  <QRCodeSVG value={`${baseUrl}/jugador/${p.short_id}`} size={56} />
+                  {p.photo_url && (
+                    <img src={p.photo_url} alt="Foto"
+                      style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
+                  )}
+                </>
               )}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={styles.playerName}>{p.first_name} {p.last_name}</div>
-                <div style={styles.playerMeta}>
-                  {p.teams?.name} — #{p.jersey_number} — ID: {p.short_id}
-                </div>
-                <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={styles.statusBadge(p.status)} />
-                  <select style={styles.select} value={p.status} onChange={e => updateStatus(p.id, e.target.value)}>
-                    {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  <button style={styles.smallBtn} onClick={() => generateCarnet(p, p.teams?.name)}>
-                    Descargar carnet
-                  </button>
-                </div>
+                {editingId === p.id ? (
+                  <div>
+                    <input style={styles.editInput} placeholder="Nombre" value={editForm.first_name}
+                      onChange={e => setEditForm({ ...editForm, first_name: e.target.value })} />
+                    <input style={styles.editInput} placeholder="Apellido" value={editForm.last_name}
+                      onChange={e => setEditForm({ ...editForm, last_name: e.target.value })} />
+                    <input style={styles.editInput} placeholder="DNI" value={editForm.dni}
+                      onChange={e => setEditForm({ ...editForm, dni: e.target.value })} />
+                    <input style={styles.editInput} type="date" value={editForm.birth_date}
+                      onChange={e => setEditForm({ ...editForm, birth_date: e.target.value })} />
+                    <select style={styles.editInput} value={editForm.team_id}
+                      onChange={e => setEditForm({ ...editForm, team_id: e.target.value })}>
+                      <option value="">Seleccionar equipo</option>
+                      {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                    <input style={styles.editInput} placeholder="Número de camiseta" type="number" value={editForm.jersey_number}
+                      onChange={e => setEditForm({ ...editForm, jersey_number: e.target.value })} />
+                    <input style={styles.editInput} placeholder="Posición" value={editForm.position}
+                      onChange={e => setEditForm({ ...editForm, position: e.target.value })} />
+                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                      <button style={{ ...styles.smallBtn, background: '#16a34a', flex: 1 }} onClick={() => saveEdit(p.id)}>
+                        Guardar
+                      </button>
+                      <button style={{ ...styles.smallBtn, flex: 1 }} onClick={cancelEdit}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={styles.playerName}>{p.first_name} {p.last_name}</div>
+                    <div style={styles.playerMeta}>
+                      {p.teams?.name} — #{p.jersey_number} — ID: {p.short_id}
+                    </div>
+                    <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={styles.statusBadge(p.status)} />
+                      <select style={styles.select} value={p.status} onChange={e => updateStatus(p.id, e.target.value)}>
+                        {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <button style={styles.smallBtn} onClick={() => generateCarnet(p, p.teams?.name)}>
+                        Descargar carnet
+                      </button>
+                      <button style={styles.smallBtn} onClick={() => startEdit(p)}>
+                        Editar
+                      </button>
+                      <button style={{ ...styles.smallBtn, background: '#dc2626' }}
+                        onClick={() => deletePlayer(p.id, `${p.first_name} ${p.last_name}`)}>
+                        Eliminar
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           ))}
