@@ -77,69 +77,95 @@ function PlayerRegistration() {
     setSubmitted(true)
   }
 
+  const RED = '#c81e28'
+
   const styles = {
     page: {
       minHeight: '100vh',
-      background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)',
+      background: '#0d0d0d',
       fontFamily: "'Segoe UI', Roboto, sans-serif",
-      padding: '40px 16px',
+      padding: '32px 16px',
+      position: 'relative',
+      overflow: 'hidden',
+    },
+    diagonalRed: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '140%',
+      height: 180,
+      background: `linear-gradient(135deg, transparent 45%, ${RED} 46%, ${RED} 60%, transparent 61%)`,
+      pointerEvents: 'none',
     },
     card: {
       maxWidth: 420,
       margin: '0 auto',
       background: '#ffffff',
-      borderRadius: 16,
-      padding: 32,
-      boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+      borderRadius: 18,
+      padding: '32px 28px',
+      boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
+      position: 'relative',
+      zIndex: 1,
     },
     logo: {
       display: 'block',
-      margin: '0 auto 16px',
-      width: 80,
-      height: 80,
+      margin: '0 auto 12px',
+      width: 84,
+      height: 84,
       objectFit: 'contain',
     },
-    title: {
+    banner: {
+      background: RED,
+      color: '#fff',
       textAlign: 'center',
-      fontSize: 22,
-      fontWeight: 700,
-      color: '#0f172a',
-      margin: '0 0 4px',
+      fontWeight: 800,
+      fontStyle: 'italic',
+      fontSize: 18,
+      letterSpacing: 1,
+      padding: '10px 0',
+      margin: '18px -28px 24px',
     },
     subtitle: {
       textAlign: 'center',
-      fontSize: 14,
-      color: '#64748b',
-      margin: '0 0 24px',
+      fontSize: 13,
+      color: '#6b6b6b',
+      margin: '-16px 0 22px',
+    },
+    label: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: '#888',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 6,
+      display: 'block',
     },
     input: {
       width: '100%',
       padding: '12px 14px',
       borderRadius: 8,
-      border: '1px solid #e2e8f0',
+      border: '1.5px solid #e5e5e5',
       fontSize: 15,
-      marginBottom: 12,
+      marginBottom: 14,
       boxSizing: 'border-box',
       outline: 'none',
+      transition: 'border-color 0.15s',
     },
-    label: {
-      fontSize: 13,
-      color: '#475569',
-      marginBottom: 6,
-      display: 'block',
-      fontWeight: 600,
+    fileWrap: {
+      marginBottom: 20,
     },
     button: {
       width: '100%',
-      padding: 14,
-      borderRadius: 8,
+      padding: 15,
+      borderRadius: 10,
       border: 'none',
-      background: '#0f172a',
+      background: '#111111',
       color: 'white',
       fontSize: 16,
-      fontWeight: 700,
+      fontWeight: 800,
       cursor: 'pointer',
-      marginTop: 8,
+      letterSpacing: 0.5,
+      boxShadow: `0 4px 0 ${RED}`,
     },
   }
 
@@ -147,8 +173,8 @@ function PlayerRegistration() {
     return (
       <div style={styles.page}>
         <div style={{ ...styles.card, textAlign: 'center' }}>
-          <h2 style={styles.title}>Torneo no encontrado</h2>
-          <p style={{ color: '#475569' }}>El link de registro no es válido.</p>
+          <h2 style={{ color: '#111' }}>Torneo no encontrado</h2>
+          <p style={{ color: '#666' }}>El link de registro no es válido.</p>
         </div>
       </div>
     )
@@ -157,10 +183,11 @@ function PlayerRegistration() {
   if (submitted) {
     return (
       <div style={styles.page}>
+        <div style={styles.diagonalRed} />
         <div style={{ ...styles.card, textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
-          <h2 style={styles.title}>Registro enviado</h2>
-          <p style={{ color: '#475569' }}>Tu carnet se descargó automáticamente. La organización va a revisar tu inscripción.</p>
+          <div style={{ fontSize: 48, marginBottom: 10 }}>⚽</div>
+          <h2 style={{ color: '#111', margin: '0 0 8px' }}>¡Registro enviado!</h2>
+          <p style={{ color: '#666' }}>Tu carnet se descargó automáticamente. La organización va a revisar tu inscripción.</p>
         </div>
       </div>
     )
@@ -168,19 +195,25 @@ function PlayerRegistration() {
 
   return (
     <div style={styles.page}>
+      <div style={styles.diagonalRed} />
       <div style={styles.card}>
         {tournament?.logo_url && (
           <img src={tournament.logo_url} alt="Logo del torneo" style={styles.logo} />
         )}
-        <h2 style={styles.title}>{tournament?.name || 'Registro de Jugador'}</h2>
-        <p style={styles.subtitle}>Completá tus datos para inscribirte</p>
+        <div style={styles.banner}>JUGADOR — REGISTRO</div>
+        <p style={styles.subtitle}>Completá tus datos para inscribirte en {tournament?.name}</p>
 
         <form onSubmit={handleSubmit}>
-          <input style={styles.input} placeholder="Nombre" value={form.first_name}
+          <label style={styles.label}>Nombre</label>
+          <input style={styles.input} value={form.first_name}
             onChange={e => setForm({ ...form, first_name: e.target.value })} required />
-          <input style={styles.input} placeholder="Apellido" value={form.last_name}
+
+          <label style={styles.label}>Apellido</label>
+          <input style={styles.input} value={form.last_name}
             onChange={e => setForm({ ...form, last_name: e.target.value })} required />
-          <input style={styles.input} placeholder="DNI" value={form.dni}
+
+          <label style={styles.label}>DNI</label>
+          <input style={styles.input} value={form.dni}
             onChange={e => setForm({ ...form, dni: e.target.value })} required />
 
           <label style={styles.label}>Fecha de nacimiento</label>
@@ -194,17 +227,22 @@ function PlayerRegistration() {
             {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
 
-          <input style={styles.input} placeholder="Número de camiseta" type="number" value={form.jersey_number}
+          <label style={styles.label}>Número de camiseta</label>
+          <input style={styles.input} type="number" value={form.jersey_number}
             onChange={e => setForm({ ...form, jersey_number: e.target.value })} />
-          <input style={styles.input} placeholder="Posición" value={form.position}
+
+          <label style={styles.label}>Posición</label>
+          <input style={styles.input} value={form.position}
             onChange={e => setForm({ ...form, position: e.target.value })} />
 
           <label style={styles.label}>Foto (obligatoria)</label>
-          <input style={{ marginBottom: 16 }} type="file" accept="image/*" required
-            onChange={e => setPhotoFile(e.target.files[0])} />
+          <div style={styles.fileWrap}>
+            <input type="file" accept="image/*" required
+              onChange={e => setPhotoFile(e.target.files[0])} />
+          </div>
 
           <button style={styles.button} type="submit" disabled={saving}>
-            {saving ? 'Guardando...' : 'Enviar registro'}
+            {saving ? 'GUARDANDO...' : 'ENVIAR REGISTRO'}
           </button>
         </form>
       </div>
