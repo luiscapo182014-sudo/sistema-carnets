@@ -2,10 +2,6 @@ import jsPDF from 'jspdf'
 import QRCode from 'qrcode'
 import { supabase } from './supabaseClient'
 
-// Tamaño real de credencial (formato ID-1, tipo tarjeta de crédito/DNI), vertical
-const PDF_W = 54  // mm
-const PDF_H = 86  // mm
-
 export async function generateCarnet(player, teamName, tournamentOverride) {
   let tournament = tournamentOverride
 
@@ -28,10 +24,7 @@ export async function generateCarnet(player, teamName, tournamentOverride) {
 
 // ============ DISEÑO CON PLANTILLA (Canvas) ============
 async function renderFromTemplate(player, teamName, tournament) {
-  // Mantenemos alta resolución en el canvas para que el PNG no salga pixelado
-  // al escalarlo al tamaño real de la credencial (54x86mm)
-  const CW = 1080
-  const CH = Math.round(CW * (PDF_H / PDF_W)) // proporción exacta 54:86
+  const CW = 1080, CH = 1920
 
   const canvas = document.createElement('canvas')
   canvas.width = CW
@@ -66,40 +59,44 @@ async function renderFromTemplate(player, teamName, tournament) {
   const qrImg = await loadImg(qrDataUrl)
   ctx.drawImage(qrImg, 580, 930, 360, 360)
 
-  // Íconos + Textos
-  ctx.textBaseline = 'alphabetic'
-
-  drawTeamIconCanvas(ctx, 220, 1330)
-
+  // Fondo blanco redondeado detrás de EQUIPO
+  drawRoundedRectCanvas(ctx, 150, 1370, 780, 100, 12, 'rgba(255,255,255,0.85)')
+  ctx.fillStyle = '#5a5a5a'
   ctx.font = 'bold 28px Arial'
-  drawTextWithOutline(ctx, 'EQUIPO', 280, 1340, '#ffffff', '#000000', 3)
-
+  ctx.fillText('EQUIPO', 200, 1400)
+  ctx.fillStyle = '#111111'
   ctx.font = '900 50px Arial'
-  drawTextWithOutline(ctx, (teamName || '-').toUpperCase(), 280, 1400, '#ffffff', '#000000', 5)
+  ctx.fillText((teamName || '-').toUpperCase(), 200, 1450)
+  drawTeamIconCanvas(ctx, 170, 1420)
 
-  drawIdIconCanvas(ctx, 220, 1460)
-
+  // Fondo blanco redondeado detrás de DNI
+  drawRoundedRectCanvas(ctx, 150, 1490, 780, 100, 12, 'rgba(255,255,255,0.85)')
+  ctx.fillStyle = '#5a5a5a'
   ctx.font = 'bold 28px Arial'
-  drawTextWithOutline(ctx, 'DNI', 280, 1470, '#ffffff', '#000000', 3)
-
+  ctx.fillText('DNI', 200, 1520)
+  ctx.fillStyle = '#111111'
   ctx.font = '900 50px Arial'
-  drawTextWithOutline(ctx, formatDNI(player.dni), 280, 1530, '#ffffff', '#000000', 5)
+  ctx.fillText(formatDNI(player.dni), 200, 1570)
+  drawIdIconCanvas(ctx, 170, 1540)
 
   const imgData = canvas.toDataURL('image/png')
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [PDF_W, PDF_H] })
-  doc.addImage(imgData, 'PNG', 0, 0, PDF_W, PDF_H)
+  const pdfW = 90
+  const pdfH = pdfW * (CH / CW)
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pdfW, pdfH] })
+  doc.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH)
   doc.save(`carnet_${player.first_name}_${player.last_name}.pdf`)
 }
 
-// Dibuja texto con contorno para que sea legible sobre cualquier fondo (claro u oscuro)
-function drawTextWithOutline(ctx, text, x, y, fillColor = '#ffffff', strokeColor = '#000000', lineWidth = 4) {
-  ctx.lineJoin = 'round'
-  ctx.miterLimit = 2
-  ctx.lineWidth = lineWidth
-  ctx.strokeStyle = strokeColor
-  ctx.strokeText(text, x, y)
-  ctx.fillStyle = fillColor
-  ctx.fillText(text, x, y)
+function drawRoundedRectCanvas(ctx, x, y, w, h, r, color) {
+  ctx.fillStyle = color
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x, y + h, r)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.closePath()
+  ctx.fill()
 }
 
 function drawTeamIconCanvas(ctx, x, y) {
@@ -165,23 +162,22 @@ async function renderDesignDefault(player, teamName, tournament) {
   const BLACK2 = [15, 15, 15]
   const WHITE = [255, 255, 255]
 
-  // Tamaño real de credencial
-  const W = PDF_W, H = PDF_H
+  const W = 81, H = 144
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, H] })
 
   doc.setFillColor(...BLACK2)
   doc.rect(0, 0, W, H, 'F')
 
   doc.setFillColor(...RED2)
-  doc.triangle(0, 0, W, 0, W, 18, 'F')
-  doc.triangle(0, 0, 0, 18, W, 18, 'F')
+  doc.triangle(0, 0, W, 0, W, 30, 'F')
+  doc.triangle(0, 0, 0, 30, W, 30, 'F')
 
-  const logoSize = 15
+  const logoSize = 26
   const logoX = W / 2 - logoSize / 2
-  const logoY = 4
+  const logoY = 6
 
   doc.setFillColor(...WHITE)
-  doc.circle(W / 2, logoY + logoSize / 2, logoSize / 2 + 1, 'F')
+  doc.circle(W / 2, logoY + logoSize / 2, logoSize / 2 + 1.5, 'F')
 
   if (tournament?.logo_url) {
     try {
@@ -202,26 +198,26 @@ async function renderDesignDefault(player, teamName, tournament) {
     }
   }
 
-  const bannerY = 21
+  const bannerY = 36
   doc.setFillColor(...RED2)
-  doc.rect(0, bannerY, W, 7, 'F')
+  doc.rect(0, bannerY, W, 11, 'F')
   doc.setFillColor(...WHITE)
-  doc.rect(0, bannerY, W, 0.4, 'F')
-  doc.rect(0, bannerY + 6.6, W, 0.4, 'F')
+  doc.rect(0, bannerY, W, 0.6, 'F')
+  doc.rect(0, bannerY + 10.4, W, 0.6, 'F')
 
   doc.setTextColor(...WHITE)
-  doc.setFontSize(9)
+  doc.setFontSize(15)
   doc.setFont(undefined, 'bold')
-  doc.text('JUGADOR', W / 2, bannerY + 5, { align: 'center' })
+  doc.text('JUGADOR', W / 2, bannerY + 8, { align: 'center' })
 
-  const rowY = 32
-  const photoW = 19, photoH = 23
-  const photoX = 4
+  const rowY = 54
+  const photoW = 32, photoH = 38
+  const photoX = 6
 
   doc.setFillColor(30, 30, 30)
-  doc.roundedRect(photoX - 0.6, rowY - 0.6, photoW + 1.2, photoH + 1.2, 1.2, 1.2, 'F')
+  doc.roundedRect(photoX - 1, rowY - 1, photoW + 2, photoH + 2, 2, 2, 'F')
   doc.setFillColor(...WHITE)
-  doc.roundedRect(photoX, rowY, photoW, photoH, 1, 1, 'F')
+  doc.roundedRect(photoX, rowY, photoW, photoH, 1.5, 1.5, 'F')
 
   if (player.photo_url) {
     try {
@@ -229,69 +225,69 @@ async function renderDesignDefault(player, teamName, tournament) {
       const c = document.createElement('canvas')
       c.width = img.width; c.height = img.height
       c.getContext('2d').drawImage(img, 0, 0)
-      doc.addImage(c.toDataURL('image/png'), 'PNG', photoX + 0.6, rowY + 0.6, photoW - 1.2, photoH - 1.2)
+      doc.addImage(c.toDataURL('image/png'), 'PNG', photoX + 1, rowY + 1, photoW - 2, photoH - 2)
     } catch (e) {
       console.warn('No se pudo cargar la foto', e)
     }
   }
 
-  const qrSize = 19
-  const qrX = W - 4 - qrSize
+  const qrSize = 32
+  const qrX = W - 6 - qrSize
   const qrY = rowY + (photoH - qrSize) / 2
 
   doc.setFillColor(30, 30, 30)
-  doc.roundedRect(qrX - 0.6, qrY - 0.6, qrSize + 1.2, qrSize + 1.2, 1.2, 1.2, 'F')
+  doc.roundedRect(qrX - 1, qrY - 1, qrSize + 2, qrSize + 2, 2, 2, 'F')
   doc.setFillColor(...WHITE)
-  doc.roundedRect(qrX, qrY, qrSize, qrSize, 1, 1, 'F')
+  doc.roundedRect(qrX, qrY, qrSize, qrSize, 1.5, 1.5, 'F')
 
   const qrDataUrl = await QRCode.toDataURL(`${window.location.origin}/jugador/${player.short_id}`, {
     color: { dark: '#0f0f0f', light: '#ffffff' },
     margin: 0
   })
-  doc.addImage(qrDataUrl, 'PNG', qrX + 1, qrY + 1, qrSize - 2, qrSize - 2)
+  doc.addImage(qrDataUrl, 'PNG', qrX + 1.5, qrY + 1.5, qrSize - 3, qrSize - 3)
 
-  let y = rowY + photoH + 7
+  let y = rowY + photoH + 12
   doc.setTextColor(...WHITE)
-  doc.setFontSize(8.5)
+  doc.setFontSize(13)
   doc.setFont(undefined, 'bold')
-  doc.text(`${player.first_name} ${player.last_name}`.toUpperCase(), W / 2, y, { align: 'center', maxWidth: W - 6 })
+  doc.text(`${player.first_name} ${player.last_name}`.toUpperCase(), W / 2, y, { align: 'center', maxWidth: W - 10 })
 
-  y += 7
-  doc.setFontSize(5.5)
+  y += 12
+  doc.setFontSize(8)
   doc.setTextColor(140, 140, 140)
   doc.setFont(undefined, 'normal')
   doc.text('EQUIPO', W / 2, y, { align: 'center' })
-  y += 4
-  doc.setFontSize(7.5)
+  y += 6
+  doc.setFontSize(12)
   doc.setTextColor(...WHITE)
   doc.setFont(undefined, 'bold')
-  doc.text((teamName || '-').toUpperCase(), W / 2, y, { align: 'center', maxWidth: W - 6 })
+  doc.text((teamName || '-').toUpperCase(), W / 2, y, { align: 'center', maxWidth: W - 10 })
 
-  y += 6
-  doc.setFontSize(5.5)
+  y += 10
+  doc.setFontSize(8)
   doc.setTextColor(140, 140, 140)
   doc.setFont(undefined, 'normal')
   doc.text('DNI', W / 2, y, { align: 'center' })
-  y += 4
-  doc.setFontSize(7.5)
+  y += 6
+  doc.setFontSize(12)
   doc.setTextColor(...WHITE)
   doc.setFont(undefined, 'bold')
   doc.text(formatDNI(player.dni), W / 2, y, { align: 'center' })
 
-  const footerY = H - 13
+  const footerY = H - 22
   doc.setFillColor(...RED2)
-  doc.triangle(0, footerY, W, footerY + 5, 0, H, 'F')
+  doc.triangle(0, footerY, W, footerY + 8, 0, H, 'F')
   doc.setFillColor(...BLACK2)
   doc.triangle(W, footerY, W, H, 0, H, 'F')
 
-  const ballR = 2.2
+  const ballR = 3.5
   doc.setFillColor(...WHITE)
-  doc.circle(W / 2, H - 5, ballR, 'F')
+  doc.circle(W / 2, H - 8, ballR, 'F')
   doc.setDrawColor(...BLACK2)
-  doc.setLineWidth(0.2)
-  doc.circle(W / 2, H - 5, ballR)
+  doc.setLineWidth(0.3)
+  doc.circle(W / 2, H - 8, ballR)
   doc.setFillColor(...BLACK2)
-  doc.circle(W / 2, H - 5, 0.6, 'F')
+  doc.circle(W / 2, H - 8, 1, 'F')
 
   doc.save(`carnet_${player.first_name}_${player.last_name}.pdf`)
 }
