@@ -5,6 +5,14 @@ import { generateCarnet } from './generateCarnet'
 import './App.css'
 
 const statusOptions = ['habilitado', 'suspendido', 'expulsado', 'baja']
+const RED = '#c81e28'
+
+const statusColors = {
+  habilitado: '#16a34a',
+  suspendido: '#eab308',
+  expulsado: '#dc2626',
+  baja: '#6b7280',
+}
 
 function App({ onLogout }) {
   const [teams, setTeams] = useState([])
@@ -77,74 +85,207 @@ function App({ onLogout }) {
 
   const baseUrl = window.location.origin
 
+  const styles = {
+    page: {
+      minHeight: '100vh',
+      background: '#0d0d0d',
+      fontFamily: "'Segoe UI', Roboto, sans-serif",
+      padding: '0 0 60px',
+    },
+    header: {
+      background: RED,
+      padding: '20px 24px',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+    },
+    headerTitle: {
+      color: '#fff',
+      fontSize: 20,
+      fontWeight: 800,
+      fontStyle: 'italic',
+      margin: 0,
+      letterSpacing: 0.5,
+    },
+    logoutBtn: {
+      background: 'rgba(0,0,0,0.25)',
+      color: '#fff',
+      border: 'none',
+      borderRadius: 8,
+      padding: '8px 16px',
+      fontWeight: 700,
+      cursor: 'pointer',
+      fontSize: 13,
+    },
+    container: {
+      maxWidth: 760,
+      margin: '0 auto',
+      padding: '28px 20px 0',
+    },
+    section: {
+      background: '#1a1a1a',
+      borderRadius: 14,
+      padding: 24,
+      marginBottom: 24,
+      border: '1px solid #2a2a2a',
+    },
+    sectionTitle: {
+      color: '#fff',
+      fontSize: 15,
+      fontWeight: 800,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      margin: '0 0 18px',
+      borderLeft: `4px solid ${RED}`,
+      paddingLeft: 10,
+    },
+    input: {
+      width: '100%',
+      padding: '11px 13px',
+      borderRadius: 8,
+      border: '1px solid #333',
+      background: '#0d0d0d',
+      color: '#fff',
+      fontSize: 14,
+      marginBottom: 10,
+      boxSizing: 'border-box',
+      outline: 'none',
+    },
+    button: {
+      width: '100%',
+      padding: 13,
+      borderRadius: 8,
+      border: 'none',
+      background: RED,
+      color: 'white',
+      fontSize: 14,
+      fontWeight: 800,
+      cursor: 'pointer',
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+    },
+    playerCard: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14,
+      background: '#0d0d0d',
+      border: '1px solid #2a2a2a',
+      borderRadius: 10,
+      padding: 12,
+      marginBottom: 12,
+    },
+    playerName: {
+      color: '#fff',
+      fontWeight: 700,
+      fontSize: 15,
+    },
+    playerMeta: {
+      color: '#888',
+      fontSize: 12.5,
+    },
+    select: {
+      background: '#1a1a1a',
+      color: '#fff',
+      border: '1px solid #333',
+      borderRadius: 6,
+      padding: '5px 8px',
+      fontSize: 12,
+    },
+    smallBtn: {
+      background: '#2a2a2a',
+      color: '#fff',
+      border: 'none',
+      borderRadius: 6,
+      padding: '5px 10px',
+      fontSize: 12,
+      fontWeight: 700,
+      cursor: 'pointer',
+    },
+    statusBadge: (status) => ({
+      display: 'inline-block',
+      width: 8,
+      height: 8,
+      borderRadius: '50%',
+      background: statusColors[status] || '#888',
+      marginRight: 6,
+    }),
+  }
+
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: 20, fontFamily: 'sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>Sistema de Torneo</h1>
-        <button onClick={onLogout}>Cerrar sesión</button>
+    <div style={styles.page}>
+      <div style={styles.header}>
+        <h1 style={styles.headerTitle}>PANEL DE ADMINISTRACIÓN</h1>
+        <button style={styles.logoutBtn} onClick={onLogout}>CERRAR SESIÓN</button>
       </div>
 
-      <h2>Cargar Equipo</h2>
-      <form onSubmit={createTeam} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 30 }}>
-        <input placeholder="Nombre del equipo" value={teamForm.name}
-          onChange={e => setTeamForm({ ...teamForm, name: e.target.value })} required />
-        <input placeholder="Delegado" value={teamForm.delegate_name}
-          onChange={e => setTeamForm({ ...teamForm, delegate_name: e.target.value })} />
-        <input placeholder="Contacto del delegado" value={teamForm.delegate_contact}
-          onChange={e => setTeamForm({ ...teamForm, delegate_contact: e.target.value })} />
-        <button type="submit">Guardar Equipo</button>
-      </form>
+      <div style={styles.container}>
+        <div style={styles.section}>
+          <h2 style={styles.sectionTitle}>Cargar Equipo</h2>
+          <form onSubmit={createTeam}>
+            <input style={styles.input} placeholder="Nombre del equipo" value={teamForm.name}
+              onChange={e => setTeamForm({ ...teamForm, name: e.target.value })} required />
+            <input style={styles.input} placeholder="Delegado" value={teamForm.delegate_name}
+              onChange={e => setTeamForm({ ...teamForm, delegate_name: e.target.value })} />
+            <input style={styles.input} placeholder="Contacto del delegado" value={teamForm.delegate_contact}
+              onChange={e => setTeamForm({ ...teamForm, delegate_contact: e.target.value })} />
+            <button style={styles.button} type="submit">Guardar Equipo</button>
+          </form>
+        </div>
 
-      <h2>Cargar Jugador</h2>
-      <form onSubmit={createPlayer} style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 30 }}>
-        <input placeholder="Nombre" value={playerForm.first_name}
-          onChange={e => setPlayerForm({ ...playerForm, first_name: e.target.value })} required />
-        <input placeholder="Apellido" value={playerForm.last_name}
-          onChange={e => setPlayerForm({ ...playerForm, last_name: e.target.value })} required />
-        <input placeholder="DNI" value={playerForm.dni}
-          onChange={e => setPlayerForm({ ...playerForm, dni: e.target.value })} required />
-        <input type="date" value={playerForm.birth_date}
-          onChange={e => setPlayerForm({ ...playerForm, birth_date: e.target.value })} />
-        <select value={playerForm.team_id}
-          onChange={e => setPlayerForm({ ...playerForm, team_id: e.target.value })} required>
-          <option value="">Seleccionar equipo</option>
-          {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-        </select>
-        <input placeholder="Número de camiseta" type="number" value={playerForm.jersey_number}
-          onChange={e => setPlayerForm({ ...playerForm, jersey_number: e.target.value })} />
-        <input placeholder="Posición" value={playerForm.position}
-          onChange={e => setPlayerForm({ ...playerForm, position: e.target.value })} />
-        <input type="file" accept="image/*"
-          onChange={e => setPhotoFile(e.target.files[0])} />
-        <button type="submit">Guardar Jugador</button>
-      </form>
+        <div style={styles.section}>
+          <h2 style={styles.sectionTitle}>Cargar Jugador</h2>
+          <form onSubmit={createPlayer}>
+            <input style={styles.input} placeholder="Nombre" value={playerForm.first_name}
+              onChange={e => setPlayerForm({ ...playerForm, first_name: e.target.value })} required />
+            <input style={styles.input} placeholder="Apellido" value={playerForm.last_name}
+              onChange={e => setPlayerForm({ ...playerForm, last_name: e.target.value })} required />
+            <input style={styles.input} placeholder="DNI" value={playerForm.dni}
+              onChange={e => setPlayerForm({ ...playerForm, dni: e.target.value })} required />
+            <input style={styles.input} type="date" value={playerForm.birth_date}
+              onChange={e => setPlayerForm({ ...playerForm, birth_date: e.target.value })} />
+            <select style={styles.input} value={playerForm.team_id}
+              onChange={e => setPlayerForm({ ...playerForm, team_id: e.target.value })} required>
+              <option value="">Seleccionar equipo</option>
+              {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <input style={styles.input} placeholder="Número de camiseta" type="number" value={playerForm.jersey_number}
+              onChange={e => setPlayerForm({ ...playerForm, jersey_number: e.target.value })} />
+            <input style={styles.input} placeholder="Posición" value={playerForm.position}
+              onChange={e => setPlayerForm({ ...playerForm, position: e.target.value })} />
+            <input style={{ ...styles.input, padding: '8px 0' }} type="file" accept="image/*"
+              onChange={e => setPhotoFile(e.target.files[0])} />
+            <button style={styles.button} type="submit">Guardar Jugador</button>
+          </form>
+        </div>
 
-      <h2>Jugadores cargados ({players.length})</h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {players.map(p => (
-          <div key={p.id} style={{
-            display: 'flex', alignItems: 'center', gap: 16,
-            border: '1px solid #ddd', borderRadius: 8, padding: 12
-          }}>
-            <QRCodeSVG value={`${baseUrl}/jugador/${p.short_id}`} size={80} />
-            {p.photo_url && (
-              <img src={p.photo_url} alt="Foto"
-                style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover' }} />
-            )}
-            <div style={{ flex: 1 }}>
-              <strong>{p.first_name} {p.last_name}</strong><br />
-              <span style={{ color: '#555', fontSize: 14 }}>
-                {p.teams?.name} — #{p.jersey_number} — ID: {p.short_id}
-              </span>
-              <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <select value={p.status} onChange={e => updateStatus(p.id, e.target.value)}>
-                  {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <button onClick={() => generateCarnet(p, p.teams?.name)}>Descargar carnet</button>
+        <div style={styles.section}>
+          <h2 style={styles.sectionTitle}>Jugadores cargados ({players.length})</h2>
+          {players.map(p => (
+            <div key={p.id} style={styles.playerCard}>
+              <QRCodeSVG value={`${baseUrl}/jugador/${p.short_id}`} size={56} />
+              {p.photo_url && (
+                <img src={p.photo_url} alt="Foto"
+                  style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={styles.playerName}>{p.first_name} {p.last_name}</div>
+                <div style={styles.playerMeta}>
+                  {p.teams?.name} — #{p.jersey_number} — ID: {p.short_id}
+                </div>
+                <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={styles.statusBadge(p.status)} />
+                  <select style={styles.select} value={p.status} onChange={e => updateStatus(p.id, e.target.value)}>
+                    {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <button style={styles.smallBtn} onClick={() => generateCarnet(p, p.teams?.name)}>
+                    Descargar carnet
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )
