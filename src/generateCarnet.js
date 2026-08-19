@@ -15,16 +15,17 @@ export async function generateCarnet(player, teamName, tournamentOverride) {
     tournament = result.data
   }
 
-  // ADN (id=2) y Clausura 2026 (id=1) usan el mismo flujo de plantilla
-  if ((tournament?.id === 1 || tournament?.id === 2) && tournament?.carnet_template_url) {
-    await renderFromTemplate(player, teamName, tournament)
+  if (tournament?.id === 2 && tournament?.carnet_template_url) {
+    await renderFromTemplateADN(player, teamName, tournament)
+  } else if (tournament?.id === 1 && tournament?.carnet_template_url) {
+    await renderFromTemplateClausura(player, teamName, tournament)
   } else {
     await renderDesignDefault(player, teamName, tournament)
   }
 }
 
-// ============ DISEÑO CON PLANTILLA (Canvas) ============
-async function renderFromTemplate(player, teamName, tournament) {
+// ============ DISEÑO CON PLANTILLA - Torneo ADN (id=2) ============
+async function renderFromTemplateADN(player, teamName, tournament) {
   const CW = 1080, CH = 1920
 
   const canvas = document.createElement('canvas')
@@ -35,7 +36,72 @@ async function renderFromTemplate(player, teamName, tournament) {
   const template = await loadImg(tournament.carnet_template_url)
   ctx.drawImage(template, 0, 0, CW, CH)
 
-  // Logo centrado arriba (zona topográfica)
+  if (tournament.logo_url) {
+    try {
+      const logo = await loadImg(tournament.logo_url)
+      ctx.drawImage(logo, 340, 150, 400, 400)
+    } catch (e) {
+      console.warn('No se pudo cargar el logo', e)
+    }
+  }
+
+  if (player.photo_url) {
+    try {
+      const photo = await loadImg(player.photo_url)
+      drawImageCover(ctx, photo, 150, 880, 360, 460)
+    } catch (e) {
+      console.warn('No se pudo cargar la foto', e)
+    }
+  }
+
+  const qrDataUrl = await QRCode.toDataURL(`${window.location.origin}/jugador/${player.short_id}`, {
+    color: { dark: '#141414', light: '#ffffff' },
+    margin: 0
+  })
+  const qrImg = await loadImg(qrDataUrl)
+  ctx.drawImage(qrImg, 580, 930, 360, 360)
+
+  // Fondo blanco redondeado detrás de EQUIPO
+  drawRoundedRectCanvas(ctx, 150, 1370, 780, 100, 12, 'rgba(255,255,255,0.85)')
+  ctx.fillStyle = '#5a5a5a'
+  ctx.font = 'bold 28px Arial'
+  ctx.fillText('EQUIPO', 200, 1400)
+  ctx.fillStyle = '#111111'
+  ctx.font = '900 50px Arial'
+  ctx.fillText((teamName || '-').toUpperCase(), 200, 1450)
+  drawTeamIconCanvas(ctx, 170, 1420)
+
+  // Fondo blanco redondeado detrás de DNI
+  drawRoundedRectCanvas(ctx, 150, 1490, 780, 100, 12, 'rgba(255,255,255,0.85)')
+  ctx.fillStyle = '#5a5a5a'
+  ctx.font = 'bold 28px Arial'
+  ctx.fillText('DNI', 200, 1520)
+  ctx.fillStyle = '#111111'
+  ctx.font = '900 50px Arial'
+  ctx.fillText(formatDNI(player.dni), 200, 1570)
+  drawIdIconCanvas(ctx, 170, 1540)
+
+  const imgData = canvas.toDataURL('image/png')
+  const pdfW = 90
+  const pdfH = pdfW * (CH / CW)
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pdfW, pdfH] })
+  doc.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH)
+  doc.save(`carnet_${player.first_name}_${player.last_name}.pdf`)
+}
+
+// ============ DISEÑO CON PLANTILLA - Torneo Clausura 2026 (id=1) ============
+async function renderFromTemplateClausura(player, teamName, tournament) {
+  const CW = 1080, CH = 1920
+
+  const canvas = document.createElement('canvas')
+  canvas.width = CW
+  canvas.height = CH
+  const ctx = canvas.getContext('2d')
+
+  const template = await loadImg(tournament.carnet_template_url)
+  ctx.drawImage(template, 0, 0, CW, CH)
+
+  // Logo centrado arriba
   if (tournament.logo_url) {
     try {
       const logo = await loadImg(tournament.logo_url)
@@ -49,20 +115,8 @@ async function renderFromTemplate(player, teamName, tournament) {
   }
 
   // Foto del jugador (recuadro izquierdo)
-  // Tamaño original (usado para torneo id=2)
-  let photoW = 389, photoH = 691
-  let photoX = 76, photoY = 710
-
-  // Si es el torneo Clausura 2026 (id=1), la achicamos y la centramos
-  // en el mismo espacio que ocupaba la foto grande
-  if (tournament?.id === 1) {
-    const origW = 389, origH = 691
-    const origX = 76, origY = 710
-    photoW = 330
-    photoH = 587
-    photoX = origX + (origW - photoW) / 2
-    photoY = origY + (origH - photoH) / 2
-  }
+  const photoW = 330, photoH = 587
+  const photoX = 76, photoY = 710
 
   if (player.photo_url) {
     try {
@@ -80,7 +134,6 @@ async function renderFromTemplate(player, teamName, tournament) {
   })
   const qrImg = await loadImg(qrDataUrl)
   const qrX = 410, qrY = 1555, qrW = 238, qrH = 346
-  // el QR es cuadrado: lo centramos dentro del recuadro rectangular de la plantilla
   const qrSide = Math.min(qrW, qrH) - 30
   ctx.drawImage(qrImg, qrX + (qrW - qrSide) / 2, qrY + (qrH - qrSide) / 2, qrSide, qrSide)
 
@@ -107,8 +160,7 @@ async function renderFromTemplate(player, teamName, tournament) {
   doc.save(`carnet_${player.first_name}_${player.last_name}.pdf`)
 }
 
-// Dibuja un bloque de "LABEL" + "VALOR" con fondo blanco redondeado,
-// con el texto envuelto (wrap) si no entra en el ancho del bloque.
+// Dibuja un bloque de "LABEL" + "VALOR" con fondo blanco redondeado (usado en Clausura)
 function drawInfoBlock(ctx, x, y, w, h, label, value) {
   drawRoundedRectCanvas(ctx, x, y, w, h, 12, 'rgba(255,255,255,0.85)')
 
@@ -138,7 +190,6 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
   }
   if (line) lines.push(line)
 
-  // máximo 2 líneas dentro del bloque, si es más largo se corta
   lines = lines.slice(0, 2)
   lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight))
 }
@@ -153,6 +204,33 @@ function drawRoundedRectCanvas(ctx, x, y, w, h, r, color) {
   ctx.arcTo(x, y, x + w, y, r)
   ctx.closePath()
   ctx.fill()
+}
+
+function drawTeamIconCanvas(ctx, x, y) {
+  ctx.strokeStyle = '#c81e28'
+  ctx.lineWidth = 4
+  ctx.beginPath()
+  ctx.arc(x - 12, y, 10, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.arc(x + 12, y, 10, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.arc(x, y - 10, 11, 0, Math.PI * 2)
+  ctx.stroke()
+}
+
+function drawIdIconCanvas(ctx, x, y) {
+  ctx.strokeStyle = '#c81e28'
+  ctx.lineWidth = 4
+  ctx.strokeRect(x - 22, y - 22, 44, 44)
+  ctx.beginPath()
+  ctx.arc(x, y - 6, 8, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(x - 12, y + 12)
+  ctx.lineTo(x + 12, y + 12)
+  ctx.stroke()
 }
 
 function drawImageCover(ctx, img, x, y, w, h) {
