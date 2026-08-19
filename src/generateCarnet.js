@@ -49,7 +49,21 @@ async function renderFromTemplate(player, teamName, tournament) {
   }
 
   // Foto del jugador (recuadro izquierdo)
-  const photoX = 76, photoY = 710, photoW = 389, photoH = 691
+  // Tamaño original (usado para torneo id=2)
+  let photoW = 389, photoH = 691
+  let photoX = 76, photoY = 710
+
+  // Si es el torneo Clausura 2026 (id=1), la achicamos y la centramos
+  // en el mismo espacio que ocupaba la foto grande
+  if (tournament?.id === 1) {
+    const origW = 389, origH = 691
+    const origX = 76, origY = 710
+    photoW = 330
+    photoH = 587
+    photoX = origX + (origW - photoW) / 2
+    photoY = origY + (origH - photoH) / 2
+  }
+
   if (player.photo_url) {
     try {
       const photo = await loadImg(player.photo_url)
