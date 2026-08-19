@@ -15,7 +15,8 @@ export async function generateCarnet(player, teamName, tournamentOverride) {
     tournament = result.data
   }
 
-  if (tournament?.id === 2 && tournament?.carnet_template_url) {
+  // ADN (id=2) y Clausura 2026 (id=1) usan el mismo flujo de plantilla
+  if ((tournament?.id === 1 || tournament?.id === 2) && tournament?.carnet_template_url) {
     await renderFromTemplate(player, teamName, tournament)
   } else {
     await renderDesignDefault(player, teamName, tournament)
@@ -34,50 +35,55 @@ async function renderFromTemplate(player, teamName, tournament) {
   const template = await loadImg(tournament.carnet_template_url)
   ctx.drawImage(template, 0, 0, CW, CH)
 
+  // Logo centrado arriba (zona topográfica)
   if (tournament.logo_url) {
     try {
       const logo = await loadImg(tournament.logo_url)
-      ctx.drawImage(logo, 340, 150, 400, 400)
+      const logoW = 380, logoH = 380
+      const logoX = (CW - logoW) / 2
+      const logoY = 60
+      ctx.drawImage(logo, logoX, logoY, logoW, logoH)
     } catch (e) {
       console.warn('No se pudo cargar el logo', e)
     }
   }
 
+  // Foto del jugador (recuadro izquierdo)
+  const photoX = 76, photoY = 710, photoW = 389, photoH = 691
   if (player.photo_url) {
     try {
       const photo = await loadImg(player.photo_url)
-      drawImageCover(ctx, photo, 150, 880, 360, 460)
+      drawImageCover(ctx, photo, photoX, photoY, photoW, photoH)
     } catch (e) {
       console.warn('No se pudo cargar la foto', e)
     }
   }
 
+  // QR (recuadro inferior centrado)
   const qrDataUrl = await QRCode.toDataURL(`${window.location.origin}/jugador/${player.short_id}`, {
     color: { dark: '#141414', light: '#ffffff' },
     margin: 0
   })
   const qrImg = await loadImg(qrDataUrl)
-  ctx.drawImage(qrImg, 580, 930, 360, 360)
+  const qrX = 410, qrY = 1555, qrW = 238, qrH = 346
+  // el QR es cuadrado: lo centramos dentro del recuadro rectangular de la plantilla
+  const qrSide = Math.min(qrW, qrH) - 30
+  ctx.drawImage(qrImg, qrX + (qrW - qrSide) / 2, qrY + (qrH - qrSide) / 2, qrSide, qrSide)
 
-  // Fondo blanco redondeado detrás de EQUIPO
-  drawRoundedRectCanvas(ctx, 150, 1370, 780, 100, 12, 'rgba(255,255,255,0.85)')
-  ctx.fillStyle = '#5a5a5a'
-  ctx.font = 'bold 28px Arial'
-  ctx.fillText('EQUIPO', 200, 1400)
-  ctx.fillStyle = '#111111'
-  ctx.font = '900 50px Arial'
-  ctx.fillText((teamName || '-').toUpperCase(), 200, 1450)
-  drawTeamIconCanvas(ctx, 170, 1420)
+  // Bloque de texto al lado de la foto: NOMBRE / APELLIDO / EQUIPO / DNI
+  const textX = 490
+  const textW = 560
+  let blockY = 740
+  const blockH = 130
+  const gap = 20
 
-  // Fondo blanco redondeado detrás de DNI
-  drawRoundedRectCanvas(ctx, 150, 1490, 780, 100, 12, 'rgba(255,255,255,0.85)')
-  ctx.fillStyle = '#5a5a5a'
-  ctx.font = 'bold 28px Arial'
-  ctx.fillText('DNI', 200, 1520)
-  ctx.fillStyle = '#111111'
-  ctx.font = '900 50px Arial'
-  ctx.fillText(formatDNI(player.dni), 200, 1570)
-  drawIdIconCanvas(ctx, 170, 1540)
+  drawInfoBlock(ctx, textX, blockY, textW, blockH, 'NOMBRE', (player.first_name || '-').toUpperCase())
+  blockY += blockH + gap
+  drawInfoBlock(ctx, textX, blockY, textW, blockH, 'APELLIDO', (player.last_name || '-').toUpperCase())
+  blockY += blockH + gap
+  drawInfoBlock(ctx, textX, blockY, textW, blockH, 'EQUIPO', (teamName || '-').toUpperCase())
+  blockY += blockH + gap
+  drawInfoBlock(ctx, textX, blockY, textW, blockH, 'DNI', formatDNI(player.dni))
 
   const imgData = canvas.toDataURL('image/png')
   const pdfW = 90
@@ -85,6 +91,42 @@ async function renderFromTemplate(player, teamName, tournament) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pdfW, pdfH] })
   doc.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH)
   doc.save(`carnet_${player.first_name}_${player.last_name}.pdf`)
+}
+
+// Dibuja un bloque de "LABEL" + "VALOR" con fondo blanco redondeado,
+// con el texto envuelto (wrap) si no entra en el ancho del bloque.
+function drawInfoBlock(ctx, x, y, w, h, label, value) {
+  drawRoundedRectCanvas(ctx, x, y, w, h, 12, 'rgba(255,255,255,0.85)')
+
+  const paddingX = 30
+  ctx.fillStyle = '#5a5a5a'
+  ctx.font = 'bold 24px Arial'
+  ctx.fillText(label, x + paddingX, y + 34)
+
+  ctx.fillStyle = '#111111'
+  ctx.font = '900 42px Arial'
+  wrapText(ctx, value, x + paddingX, y + 88, w - paddingX * 2, 46)
+}
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ')
+  let line = ''
+  let lines = []
+
+  for (const word of words) {
+    const testLine = line ? `${line} ${word}` : word
+    if (ctx.measureText(testLine).width > maxWidth && line) {
+      lines.push(line)
+      line = word
+    } else {
+      line = testLine
+    }
+  }
+  if (line) lines.push(line)
+
+  // máximo 2 líneas dentro del bloque, si es más largo se corta
+  lines = lines.slice(0, 2)
+  lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight))
 }
 
 function drawRoundedRectCanvas(ctx, x, y, w, h, r, color) {
@@ -97,33 +139,6 @@ function drawRoundedRectCanvas(ctx, x, y, w, h, r, color) {
   ctx.arcTo(x, y, x + w, y, r)
   ctx.closePath()
   ctx.fill()
-}
-
-function drawTeamIconCanvas(ctx, x, y) {
-  ctx.strokeStyle = '#c81e28'
-  ctx.lineWidth = 4
-  ctx.beginPath()
-  ctx.arc(x - 12, y, 10, 0, Math.PI * 2)
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.arc(x + 12, y, 10, 0, Math.PI * 2)
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.arc(x, y - 10, 11, 0, Math.PI * 2)
-  ctx.stroke()
-}
-
-function drawIdIconCanvas(ctx, x, y) {
-  ctx.strokeStyle = '#c81e28'
-  ctx.lineWidth = 4
-  ctx.strokeRect(x - 22, y - 22, 44, 44)
-  ctx.beginPath()
-  ctx.arc(x, y - 6, 8, 0, Math.PI * 2)
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.moveTo(x - 12, y + 12)
-  ctx.lineTo(x + 12, y + 12)
-  ctx.stroke()
 }
 
 function drawImageCover(ctx, img, x, y, w, h) {
