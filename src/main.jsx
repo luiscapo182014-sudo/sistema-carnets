@@ -6,6 +6,7 @@ import App from './App.jsx'
 import PlayerVerification from './PlayerVerification.jsx'
 import Login from './Login.jsx'
 import PlayerRegistration from './PlayerRegistration.jsx'
+import DashboardADN from './DashboardADN.jsx'
 import { supabase } from './supabaseClient.js'
 
 function Root() {
@@ -37,6 +38,9 @@ function Root() {
         } />
         <Route path="/jugador/:shortId" element={<PlayerVerification />} />
         <Route path="/registro/:tournamentId" element={<PlayerRegistration />} />
+        <Route path="/dashboard-adn" element={
+          session ? <DashboardADN /> : <Login onLogin={setSession} />
+        } />
       </Routes>
     </BrowserRouter>
   )

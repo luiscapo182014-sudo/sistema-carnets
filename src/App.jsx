@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { supabase } from './supabaseClient'
 import { generateCarnet } from './generateCarnet'
@@ -146,6 +147,23 @@ function App({ onLogout }) {
       margin: 0,
       letterSpacing: 0.5,
     },
+    headerActions: {
+      display: 'flex',
+      gap: 10,
+      alignItems: 'center',
+    },
+    dashboardBtn: {
+      background: 'rgba(0,0,0,0.25)',
+      color: '#fff',
+      border: 'none',
+      borderRadius: 8,
+      padding: '8px 16px',
+      fontWeight: 700,
+      cursor: 'pointer',
+      fontSize: 13,
+      textDecoration: 'none',
+      display: 'inline-block',
+    },
     logoutBtn: {
       background: 'rgba(0,0,0,0.25)',
       color: '#fff',
@@ -265,7 +283,10 @@ function App({ onLogout }) {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.headerTitle}>PANEL DE ADMINISTRACIÓN</h1>
-        <button style={styles.logoutBtn} onClick={onLogout}>CERRAR SESIÓN</button>
+        <div style={styles.headerActions}>
+          <Link to="/dashboard-adn" style={styles.dashboardBtn}>VER INGRESOS</Link>
+          <button style={styles.logoutBtn} onClick={onLogout}>CERRAR SESIÓN</button>
+        </div>
       </div>
 
       <div style={styles.container}>
